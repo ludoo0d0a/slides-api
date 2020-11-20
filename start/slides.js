@@ -5,9 +5,18 @@ const openurl = require('openurl');
 const commaNumber = require('comma-number');
 const Promise = require('bluebird');
 
-const ID_TITLE_SLIDE = 'id_title_slide';
-const SLIDE_TITLE_TEXT = 'CM Lux 2020';
+// const ID_TITLE_SLIDE = 'id_title_slide';
+const ID_TITLE_SLIDE = 'new_slide';
+const ID2_TITLE_SLIDE = 'new_slide';
+
+const SLIDE_TITLE_TEXT = 'Template slides 2020';
 const PRESENTATION_ID = '1zJLhRitVDHvjd2rjUiOxconaYV6jqKz6UFmI-_SRxGs'
+
+// true: use a predefined template
+const USE_DEFAULT_TEMPLATE = false;
+
+// true: use Promise.mapSeries to iterate batch on each slide
+const USE_SEQUENTIAL_BATCH = false;
 
 /**
  * Prints the number of slides and elements in a sample presentation:
@@ -53,8 +62,8 @@ const replaceTextSlides = (r) => {
 
     const allUpdateSlides = ghData.map((data, index) => updateSlideJSON(data, index, _slides));
     const slideRequests = [].concat.apply([], allUpdateSlides); // flatten the slide requests
-    console.log(slideRequests);  
-
+   
+    console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
 
     // Execute the requests
     slides.presentations.batchUpdate({
@@ -64,12 +73,10 @@ const replaceTextSlides = (r) => {
         requests: slideRequests
       }
     }, (err, res) => {
-      if (err) {
-        console.log(JSON.stringify(slideRequests, null, 4));
-        reject(err);
-      } else {
-          resolve(r);
-      }
+      if (err) return reject(err);
+     
+      console.log('batchUpdate response:', JSON.stringify(res, null, 4));
+      resolve(r);
     });
 
   });
@@ -186,7 +193,7 @@ function createSlideJSON_default(collabData, index, slideLayout) {
 // This one with 'slideLayoutReference.layoutId' dont work...
 function createSlideJSON(collabData, index, slideLayout) {
   // Then update the slides.
-  const slideId = `slide_collab_${index}`;
+  const slideId = `${ID2_TITLE_SLIDE}_${index}`;
 
   let request = [{
     createSlide: {
@@ -195,21 +202,19 @@ function createSlideJSON(collabData, index, slideLayout) {
         layoutId: slideLayout  // => cannot replaceAllText after
       }
     }
-  }]; 
-
-  
-
+  }];
   //Replace text per slide
   for( const [key, value] of Object.entries(collabData.fields)){
     request.push({
       replaceAllText: {
         replaceText: ''+value,
         containsText: { text: '{{'+key+'}}' }
- //       ,pageObjectIds: [slideId]   // => failed HERE !!!!
+        ,pageObjectIds: [slideId]   // => failed HERE !!!!
       }
     })
   }
 
+  // return {request, slideId};
   return request;
 }
 
@@ -305,13 +310,12 @@ module.exports.createSlides = function(authAndGHData) {
   console.log('createSlides...');
   const [auth, ghData] = authAndGHData;
 
+  const _createSlides = USE_SEQUENTIAL_BATCH ? createSlidesSeq: createSlidesAll;
+
   // First copy the template slide from drive.
   return copyFile(authAndGHData)
-  //.then(r => listLayouts(r))
   .then(listLayouts)
-  .then(createSlidesAll)
-  //.then(createSlidesSeq)
-  
+  .then(_createSlides)
   //.then(catchPromise)
   ;
 }
@@ -323,33 +327,35 @@ function createSlidesSeq(r) {
 
   return Promise.mapSeries(ghData, function(data, index, arrayLength) {
 
-    console.log('--');
-    console.log('--Slide' +index);
-    const allSlides = createSlideJSON(data, index, slideLayout);
-    const slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
-    console.log(JSON.stringify(slideRequests, null, 4));
-  
-    const slideId = `${ID_TITLE_SLIDE}_${index}`;
-    //const slideId = 'gac8e0ea071_5_74';
-
-    // Replace global
-    slideRequests.push({
-      replaceAllText: {
-        replaceText: SLIDE_TITLE_TEXT,
-        containsText: { text: '{{TITLE}}' }
-      }
-    })
-
-    // Replace global
-    slideRequests.push({
-      replaceAllText: {
-        replaceText: 'Slide '+index,
-        containsText: { text: '{{TITLE2}}' }
-        //,pageObjectIds: [slideId]
-      }
-    })
-
     return new Promise((resolve, reject) => {
+        console.log('--');
+        console.log('--Slide' +index);
+        const allSlides = createSlideJSON(data, index, slideLayout);
+        const slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
+
+        const slideId = `${ID2_TITLE_SLIDE}_${index}`;
+        //const slideId = 'gac8e0ea071_5_74';
+
+        // // Replace global
+        // slideRequests.push({
+        //   replaceAllText: {
+        //     replaceText: SLIDE_TITLE_TEXT,
+        //     containsText: { text: '{{TITLE}}' }
+        //     //,pageObjectIds: [slideId]
+        //   }
+        // })
+
+        // // Replace global
+        // slideRequests.push({
+        //   replaceAllText: {
+        //     replaceText: 'Slide '+index,
+        //     containsText: { text: '{{TITLE2}}' }
+        //     //,pageObjectIds: [slideId]
+        //   }
+        // })
+
+        console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
+    
         // Execute the requests
         slides.presentations.batchUpdate({
           auth: auth,
@@ -362,7 +368,7 @@ function createSlidesSeq(r) {
             console.error(err.stack);
             return reject(err);
           }
-          console.log(JSON.stringify(res, null, 4));
+          console.log('batchUpdate response:', JSON.stringify(res, null, 4));
           console.log('--Close slide' +index);
           resolve(res);
         });
@@ -385,26 +391,29 @@ function createSlidesAll(r) {
   const slideLayout = layouts['Collab'];
   console.log('Found the layout slide "Collab"');
 
-  
-  // default template : OK
-  //const allSlides = ghData.map((data, index) => createSlideJSON_default(data, index, slideLayout));
-  
-  // Custom template : KO !!
-  const allSlides = ghData.map((data, index) => createSlideJSON(data, index, slideLayout));
-
-  slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
-  console.log(JSON.stringify(slideRequests, null, 4));
-
-  // Replace global
-  slideRequests.push({
-    replaceAllText: {
-      replaceText: SLIDE_TITLE_TEXT,
-      containsText: { text: '{{TITLE}}' }
-    }
-  })
-
   return new Promise((resolve, reject) => {
-    
+      
+      // default template : OK
+      //const allSlides = ghData.map((data, index) => createSlideJSON_default(data, index, slideLayout));
+      // Custom template : KO !!
+      //const allSlides = ghData.map((data, index) => createSlideJSON(data, index, slideLayout));
+
+      const _createSlideJson = USE_DEFAULT_TEMPLATE ? createSlideJSON_default : createSlideJSON;
+      const allSlides = ghData.map((data, index) => _createSlideJson(data, index, slideLayout));
+
+      slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
+
+      // Replace global
+      slideRequests.push({
+        replaceAllText: {
+          replaceText: SLIDE_TITLE_TEXT,
+          containsText: { text: '{{TITLE}}' }
+        }
+      })
+
+      console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
+
+ 
       // Execute the requests
       slides.presentations.batchUpdate({
         auth: auth,
@@ -418,7 +427,7 @@ function createSlidesAll(r) {
           console.error(err.stack);
           return reject(err);
         }
-        console.log(JSON.stringify(res, null, 4));
+        console.log('batchUpdate response:', JSON.stringify(res, null, 4));
         resolve([auth, ghData, presentation]);
       });
 
