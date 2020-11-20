@@ -6,9 +6,6 @@ const commaNumber = require('comma-number');
 const Promise = require('bluebird');
 
 const ID_TITLE_SLIDE = 'id_title_slide';
-const ID_TITLE_SLIDE_TITLE = 'id_title_slide_title';
-const ID_TITLE_SLIDE_BODY = 'id_title_slide_body';
-
 const SLIDE_TITLE_TEXT = 'CM Lux 2020';
 const PRESENTATION_ID = '1zJLhRitVDHvjd2rjUiOxconaYV6jqKz6UFmI-_SRxGs'
 
@@ -108,7 +105,7 @@ const listLayouts = (r) => {
 // This one with 'slideLayoutReference.predefinedLayout' works...
 function createSlideJSON_default(collabData, index, slideLayout) {
   // Then update the slides.
-  const ID_TITLE_SLIDE = 'id_title_slide';
+  
   const ID_TITLE_SLIDE_TITLE = 'id_title_slide_title';
   const ID_TITLE_SLIDE_BODY = 'id_title_slide_body';
   const slideId = `${ID_TITLE_SLIDE}_${index}`;
@@ -186,7 +183,7 @@ function createSlideJSON_default(collabData, index, slideLayout) {
   return request;
 }
 
-// This one with 'slideLayoutReference.layoutId' works...
+// This one with 'slideLayoutReference.layoutId' dont work...
 function createSlideJSON(collabData, index, slideLayout) {
   // Then update the slides.
   const slideId = `slide_collab_${index}`;
@@ -195,18 +192,20 @@ function createSlideJSON(collabData, index, slideLayout) {
     createSlide: {
       objectId: slideId,
       slideLayoutReference: {
-        layoutId: slideLayout
+        layoutId: slideLayout  // => cannot replaceAllText after
       }
     }
   }]; 
 
-  // Replace text per slide
+  
+
+  //Replace text per slide
   for( const [key, value] of Object.entries(collabData.fields)){
     request.push({
       replaceAllText: {
         replaceText: ''+value,
         containsText: { text: '{{'+key+'}}' }
-        //,pageObjectIds: [slideId]
+ //       ,pageObjectIds: [slideId]   // => failed HERE !!!!
       }
     })
   }
@@ -387,10 +386,14 @@ function createSlidesAll(r) {
   console.log('Found the layout slide "Collab"');
 
   
-  const allSlides = ghData.map((data, index) => createSlideJSON_default(data, index, slideLayout));
-  //const allSlides = ghData.map((data, index) => createSlideJSON(data, index, slideLayout));
+  // default template : OK
+  //const allSlides = ghData.map((data, index) => createSlideJSON_default(data, index, slideLayout));
+  
+  // Custom template : KO !!
+  const allSlides = ghData.map((data, index) => createSlideJSON(data, index, slideLayout));
+
   slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
-  console.log(slideRequests);
+  console.log(JSON.stringify(slideRequests, null, 4));
 
   // Replace global
   slideRequests.push({
@@ -410,7 +413,11 @@ function createSlidesAll(r) {
           requests: slideRequests
         }
       }, (err, res) => {
-        if (err) return reject(err);
+        if (err) {
+          
+          console.error(err.stack);
+          return reject(err);
+        }
         console.log(JSON.stringify(res, null, 4));
         resolve([auth, ghData, presentation]);
       });
