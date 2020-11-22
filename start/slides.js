@@ -17,7 +17,7 @@ const PRESENTATION_ID_READ = '1wSc1lk8vxzsbP-a7GIYSXZJ9qxJhtyNoyw5un_PLl_s' // g
 
 // copy from here
 const ID_SOURCE_SLIDE = 'gacbe3db941_0_547';
-const SLIDES_ALREADY_THERE = 3; // 2 slides already present in slide
+const SLIDES_ALREADY_THERE = 2; // slides already present in slide
 
 // true: use a master layout template ; false = copy slide from ID_SOURCE_SLIDE
 const USE_TEMPLATE = false;
@@ -618,6 +618,14 @@ function createSlidesAll(r) {
           containsText: { text: '{{TITLE}}' }
         }
       })
+
+      // Delete template slide
+      slideRequests.push({
+        deleteObject: {
+          objectId: ID_SOURCE_SLIDE
+        }
+      })
+    
 
       //if (LOG_IN) 
         console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
