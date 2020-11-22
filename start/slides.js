@@ -7,16 +7,33 @@ const Promise = require('bluebird');
 
 // const ID_TITLE_SLIDE = 'id_title_slide';
 const ID_TITLE_SLIDE = 'new_slide';
-const ID2_TITLE_SLIDE = 'new_slide';
 
-const SLIDE_TITLE_TEXT = 'Template slides 2020';
-const PRESENTATION_ID = '1zJLhRitVDHvjd2rjUiOxconaYV6jqKz6UFmI-_SRxGs'
+
+const SLIDE_TITLE_TEXT = 'Generated slide 2020';
+const OUTPUT_DIR = 'generation';
+const PRESENTATION_ID = '1zJLhRitVDHvjd2rjUiOxconaYV6jqKz6UFmI-_SRxGs' // template Collab
+
+const PRESENTATION_ID_READ = '1wSc1lk8vxzsbP-a7GIYSXZJ9qxJhtyNoyw5un_PLl_s' // generated version with 2 slides
+
+// copy from here
+const ID_SOURCE_SLIDE = 'gacbe3db941_0_547';
+const SLIDES_ALREADY_THERE = 3; // 2 slides already present in slide
+
+// true: use a master layout template ; false = copy slide from ID_SOURCE_SLIDE
+const USE_TEMPLATE = false;
 
 // true: use a predefined template
 const USE_DEFAULT_TEMPLATE = false;
 
 // true: use Promise.mapSeries to iterate batch on each slide
 const USE_SEQUENTIAL_BATCH = false;
+
+// Replace placeholders on each slide creation 
+const REPLACE_ON_SLIDE = true;
+
+const LOG_OUT = false;
+const LOG_IN = false;
+const LIST_INFO = false;
 
 /**
  * Prints the number of slides and elements in a sample presentation:
@@ -37,21 +54,99 @@ const listSlides = (r) => {
       presentationId: presentation.id,
     }, (err, pres) => {
       if (err) return console.log('The API returned an error: ' + err);
-      const length = pres.slides.length;
-      console.log('The presentation contains %s slides:', length);
-      pres.slides.map((slide, i) => {
-        console.log(`- Slide #${i + 1} ${slide.objectId}  contains ${slide.pageElements && slide.pageElements.length || 0} elements.`);
-      });
-
-
-      const pages = pres.pages;
-      //const pageslength = pres.pages.length;
+      
+      
+      if (LIST_INFO) _listSlides(pres)
+      //_listLayouts(pres)
 
       resolve([auth, ghData, presentation, pres.slides]);
     });
 
   });
 }
+module.exports.listSlides=listSlides;
+
+
+function _listLayouts(pres){
+  const layoutslength = pres.layouts.length;
+  console.log('+ %s layouts:', layoutslength);
+  pres.layouts.map((layout, i) => {
+    console.log(`- Layout #${i + 1} "${layout.layoutProperties.displayName}"  ${layout.objectId}.`);
+    _listPageElements(layout.pageElements);
+  });
+  console.log(' ')
+}
+
+function _listSlides(pres){
+  const length = pres.slides.length;
+  console.log('+ %s slides:', length);
+  pres.slides.map((slide, i) => {
+    console.log(`- Slide #${i + 1} ${slide.objectId}  contains ${slide.pageElements && slide.pageElements.length || 0} elements.`);
+    console.log(' layout #'+slide.slideProperties.layoutObjectId+' master #'+slide.slideProperties.masterObjectId);
+    console.log(' notesPage: #'+slide.slideProperties.notesPage.objectId+' '+slide.slideProperties.notesPage.pageType);
+    _listPageElements(slide.pageElements);
+  });
+  console.log(' ');
+}
+
+function _listPageElements(pageElements){
+  if (!pageElements) return;
+
+  console.log(`>> ${pageElements && pageElements.length || 0} elements.`);
+  
+  pageElements
+  .filter(p => p.image)
+  .map((pageElement, p) => {
+    if (pageElement.image){
+      console.log(`  - image #${p + 1} url: ${pageElement.image.contentUrl} `);
+    }else{
+      console.log(`  - pageElement #${p + 1} ${pageElement.objectId}  contains ${pageElement.shape && pageElement.shape.shapeType} `);
+    }
+
+  })
+  console.log(' ')
+}
+
+
+function _listImages(slide){
+  const pageElements = slide.pageElements
+  
+  if (!pageElements) return;
+  console.log(`>> ${pageElements && pageElements.length || 0} elements.`);
+  
+  const images = [];
+  pageElements
+  .filter(p => p.image)
+  .map((pageElement, p) => {
+    let image = null;
+    if (pageElement.image){
+      console.log(`  - image #${p + 1} url: ${pageElement.image.contentUrl} `);
+      image = {
+        objectId: pageElement.objectId,
+        slide: slide.objectId,
+        url: pageElement.image.contentUrl
+      };
+    }
+    images.push(image)
+  })
+  console.log(' ')
+
+  return images;
+}
+
+
+const selectFile = (auth) => { 
+  const r = [
+    auth,
+    ghData = {},
+    presentation = {
+      id : PRESENTATION_ID_READ
+    }
+  ]
+  return Promise.resolve(r);
+}
+module.exports.selectFile=selectFile;
+
 
 const replaceTextSlides = (r) => { 
 
@@ -63,7 +158,7 @@ const replaceTextSlides = (r) => {
     const allUpdateSlides = ghData.map((data, index) => updateSlideJSON(data, index, _slides));
     const slideRequests = [].concat.apply([], allUpdateSlides); // flatten the slide requests
    
-    console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
+    if (LOG_IN) console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
 
     // Execute the requests
     slides.presentations.batchUpdate({
@@ -75,11 +170,77 @@ const replaceTextSlides = (r) => {
     }, (err, res) => {
       if (err) return reject(err);
      
-      console.log('batchUpdate response:', JSON.stringify(res, null, 4));
+      if (LOG_OUT) console.log('batchUpdate response:', JSON.stringify(res, null, 4));
       resolve(r);
     });
 
   });
+}
+module.exports.replaceTextSlides=replaceTextSlides;
+
+
+
+const replaceImages = (r) => { 
+  console.log('replaceImages ...');
+  const [auth, ghData, presentation, _slides] = r; 
+
+  return new Promise((resolve, reject) => {
+    const allUpdateSlides = _slides.map((slide, index) => updateImageJSON(slide, index, ghData));
+    const slideRequests = [].concat.apply([], allUpdateSlides); // flatten the slide requests
+   
+    console.log('replaceImages slideRequests:', JSON.stringify(slideRequests, null, 4));
+
+    if (slideRequests.length==0) return resolve(r);
+
+    // Execute the requests
+    slides.presentations.batchUpdate({
+      auth: auth,
+      presentationId: presentation.id,
+      resource: {
+        requests: slideRequests
+      }
+    }, (err, res) => {
+      if (err) return reject(err);
+     
+      if (LOG_OUT) console.log('batchUpdate response:', JSON.stringify(res, null, 4));
+      resolve(r);
+    });
+
+  });
+}
+module.exports.replaceImages = replaceImages;
+
+
+function updateImageJSON(slide, index, ghData) {
+  let request = [];
+  const images = _listImages(slide);
+  const offset = SLIDES_ALREADY_THERE ;
+  // Replace image per slide
+  images.forEach(image => {
+    const collab = (index>=offset && ghData[index-offset])
+
+    const newUrl = collab && collab.fields.photo;
+    const imageElementId = image.objectId;
+    if (imageElementId && newUrl){
+      request.push({
+        replaceImage: {
+          imageObjectId: imageElementId,
+          imageReplaceMethod: "CENTER_CROP",
+          url: newUrl
+        }        
+        // updateImageProperties: {
+        //   objectId: imageElementId,
+        //   imageProperties: {
+        //     link: {
+        //       url: newUrl
+        //     }
+        //   }
+        // }
+      })
+    }
+  });
+
+  return request;
 }
 
 const listLayouts = (r) => { 
@@ -175,25 +336,67 @@ function createSlideJSON_default(collabData, index, slideLayout) {
     }
   }];
 
-
-  // Replace text per slide
-  for( const [key, value] of Object.entries(collabData.fields)){
-    request.push({
-      replaceAllText: {
-        replaceText: ''+value,
-        containsText: { text: '{{'+key+'}}' }
-        ,pageObjectIds: [slideId]
-      }
-    })
+  if (REPLACE_ON_SLIDE){
+    // Replace text per slide
+    for( const [key, value] of Object.entries(collabData.fields)){
+      request.push({
+        replaceAllText: {
+          replaceText: ''+value,
+          containsText: { text: '{{'+key+'}}' }
+          ,pageObjectIds: [slideId]
+        }
+      })
+    }
   }
 
   return request;
 }
 
+function createSlideJSON_copy(collabData, index) {
+  const slideId = `${ID_TITLE_SLIDE}_${index}`;
+  const originalPageId = ID_SOURCE_SLIDE;
+
+  const lastIndex = SLIDES_ALREADY_THERE + index +1 ;
+
+  let request = [{
+    duplicateObject: {
+      objectId: originalPageId,
+      objectIds: {
+        [originalPageId]: slideId  // => copy slide
+      }
+    }
+  },{
+    updateSlidesPosition: {
+      slideObjectIds: [
+        slideId
+      ],
+      insertionIndex: lastIndex
+    }
+  }];
+
+
+  if (REPLACE_ON_SLIDE){
+    //Replace text per slide
+    for( const [key, value] of Object.entries(collabData.fields)){
+      request.push({
+        replaceAllText: {
+          replaceText: ''+value,
+          containsText: { text: '{{'+key+'}}' }
+          ,pageObjectIds: [slideId]   // => TODO
+        }
+      })
+    }
+  }
+
+  // return {request, slideId};
+  return request;
+}
+
+
+
 // This one with 'slideLayoutReference.layoutId' dont work...
-function createSlideJSON(collabData, index, slideLayout) {
-  // Then update the slides.
-  const slideId = `${ID2_TITLE_SLIDE}_${index}`;
+function createSlideJSON_custom(collabData, index, slideLayout) {
+  const slideId = `${ID_TITLE_SLIDE}_${index}`;
 
   let request = [{
     createSlide: {
@@ -203,15 +406,17 @@ function createSlideJSON(collabData, index, slideLayout) {
       }
     }
   }];
-  //Replace text per slide
-  for( const [key, value] of Object.entries(collabData.fields)){
-    request.push({
-      replaceAllText: {
-        replaceText: ''+value,
-        containsText: { text: '{{'+key+'}}' }
-        ,pageObjectIds: [slideId]   // => failed HERE !!!!
-      }
-    })
+  if (REPLACE_ON_SLIDE){
+    //Replace text per slide
+    for( const [key, value] of Object.entries(collabData.fields)){
+      request.push({
+        replaceAllText: {
+          replaceText: ''+value,
+          containsText: { text: '{{'+key+'}}' }
+          ,pageObjectIds: [slideId]   // => failed HERE !!!!
+        }
+      })
+    }
   }
 
   // return {request, slideId};
@@ -224,18 +429,18 @@ function updateSlideJSON(collabData, index, slides) {
 
   //const slideId = slides[index+1].objectId;
   const slideId = `${ID_TITLE_SLIDE}_${index}`;
-/*
-// Replace text per slide
-for( const [key, value] of Object.entries(collabData.fields)){
-  request.push({
-    replaceAllText: {
-      replaceText: ''+value,
-      containsText: { text: '{{'+key+'}}' },
-      pageObjectIds: [slideId]
-    }
-  })
-}
-*/
+
+  // Replace text per slide
+  for( const [key, value] of Object.entries(collabData.fields)){
+    request.push({
+      replaceAllText: {
+        replaceText: ''+value,
+        containsText: { text: '{{'+key+'}}' },
+        pageObjectIds: [slideId]
+      }
+    })
+  }
+
     // Replace global
     request.push({
       replaceAllText: {
@@ -275,8 +480,11 @@ const copyFile = (authAndGHData) => {
   const [auth, ghData] = authAndGHData;
   return new Promise((resolve, reject) => {
     // First copy the template slide from drive.
+
+
     drive.files.copy({
       auth: auth,
+      // parents: [OUTPUT_DIR],
       fileId: PRESENTATION_ID,
       fields: 'id,name,webViewLink',
       resource: {
@@ -289,12 +497,12 @@ const copyFile = (authAndGHData) => {
     });
   });
 }
+module.exports.copyFile=copyFile;
 
-
-module.exports.updateSlides = function(r) {
-  return listSlides(r)
-  .then(replaceTextSlides);
-}
+// module.exports.updateSlides = function(r) {
+//   return listSlides(r)
+//   .then(replaceTextSlides);
+// }
 
 function catchPromise(r){
   return new Promise((resolve, reject) => {
@@ -330,10 +538,10 @@ function createSlidesSeq(r) {
     return new Promise((resolve, reject) => {
         console.log('--');
         console.log('--Slide' +index);
-        const allSlides = createSlideJSON(data, index, slideLayout);
+        const allSlides = createSlideJSON_custom(data, index, slideLayout);
         const slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
 
-        const slideId = `${ID2_TITLE_SLIDE}_${index}`;
+        const slideId = `${ID_TITLE_SLIDE}_${index}`;
         //const slideId = 'gac8e0ea071_5_74';
 
         // // Replace global
@@ -354,7 +562,7 @@ function createSlidesSeq(r) {
         //   }
         // })
 
-        console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
+        if (LOG_IN) console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
     
         // Execute the requests
         slides.presentations.batchUpdate({
@@ -368,7 +576,7 @@ function createSlidesSeq(r) {
             console.error(err.stack);
             return reject(err);
           }
-          console.log('batchUpdate response:', JSON.stringify(res, null, 4));
+          if (LOG_OUT) console.log('batchUpdate response:', JSON.stringify(res, null, 4));
           console.log('--Close slide' +index);
           resolve(res);
         });
@@ -398,7 +606,7 @@ function createSlidesAll(r) {
       // Custom template : KO !!
       //const allSlides = ghData.map((data, index) => createSlideJSON(data, index, slideLayout));
 
-      const _createSlideJson = USE_DEFAULT_TEMPLATE ? createSlideJSON_default : createSlideJSON;
+      const _createSlideJson = USE_TEMPLATE ? (USE_DEFAULT_TEMPLATE ? createSlideJSON_default : createSlideJSON_custom) : createSlideJSON_copy;
       const allSlides = ghData.map((data, index) => _createSlideJson(data, index, slideLayout));
 
       slideRequests = [].concat.apply([], allSlides); // flatten the slide requests
@@ -411,7 +619,8 @@ function createSlidesAll(r) {
         }
       })
 
-      console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
+      //if (LOG_IN) 
+        console.log('slideRequests:', JSON.stringify(slideRequests, null, 4));
 
  
       // Execute the requests
@@ -427,7 +636,7 @@ function createSlidesAll(r) {
           console.error(err.stack);
           return reject(err);
         }
-        console.log('batchUpdate response:', JSON.stringify(res, null, 4));
+        if (LOG_OUT) console.log('batchUpdate response:', JSON.stringify(res, null, 4));
         resolve([auth, ghData, presentation]);
       });
 
@@ -436,11 +645,11 @@ function createSlidesAll(r) {
 
 }
 
-module.exports.debugInfo = (r) => new Promise((resolve, reject) => {
-  console.log('debugInfo...');
-  resolve(listSlides(r));
+// module.exports.debugInfo = (r) => new Promise((resolve, reject) => {
+//   console.log('debugInfo...');
+//   resolve(listSlides(r));
 
-});
+// });
 
 /**
  * Opens a presentation in a browser.

@@ -1,21 +1,31 @@
 [{
     "id": 1,
     "fields": {
-        "code": "JD",
-        "name": "John",
-        "lastname": "Doe"
+        "code": "BW",
+        "name": "Wayne",
+        "lastname": "Bruce",
+        "age": 40,
+        "tl": "RBO",
+        "xp": 30,
+        "skills": "fullstack",
+        "clients": "Gotham",
+        "overview": "Super hero & more...",
+        "plus1": "Super hero",
+        "plus2": "better",
+        "plus3": "faster",
+        "plus4": "",
+        "minus1": "dark",
+        "minus2": "black",
+        "minus3": "obscur",
+        "minus4": "",
+        "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Batman_%28black_background%29.jpg/560px-Batman_%28black_background%29.jpg"
     }
 },{
     "id": 2,
     "fields": {
-        "code": "BW",
-        "name": "Bruce",
-        "lastname": "Wayne"
-    },
-    "_fields": {
-        "code": "LUV",
-        "name": "Ludovic",
-        "lastname": "Valente",
+        "code": "BLE",
+        "name": "Bob",
+        "lastname": "Leponge",
         "age": 42,
         "tl": "RBO",
         "xp": 19,
@@ -29,12 +39,13 @@
         "minus1": "slow",
         "minus2": "old",
         "minus3": "",
-        "minus4": ""
+        "minus4": "",
+        "photo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3b/SpongeBob_SquarePants_character.svg/1200px-SpongeBob_SquarePants_character.svg.png"
     },
     "objectifs": {
         "past": [{
             "t": "C",
-            "text": "Certifciation Azure",
+            "text": "Certification Azure",
             "desc": "Complete fundamentals Certirication Azure",
             "progress": 80
         }],
