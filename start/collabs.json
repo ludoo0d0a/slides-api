@@ -42,17 +42,37 @@
         "minus4": "",
         "photo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3b/SpongeBob_SquarePants_character.svg/1200px-SpongeBob_SquarePants_character.svg.png"
     },
-    "objectifs": {
-        "past": [{
+    "list": {
+        "obj": [{
             "t": "C",
             "text": "Certification Azure",
-            "desc": "Complete fundamentals Certirication Azure",
-            "progress": 80
+            "desc": "Complete fundamentals Certification Azure",
+            "progress": 20
+        },{
+            "t": "T",
+            "text": "Project Rust",
+            "desc": "Rust demo poc",
+            "progress": 100
+        },{
+            "t": "T",
+            "text": "Project Android",
+            "desc": "Complete mobile app with Firebase",
+            "progress": 0
         }],
-        "new": [{
+        "newobj": [{
             "t": "C",
             "text": "Certifciation AliCloud",
-            "desc": "Complete fundamentals Certirication AliCloud",
+            "desc": "Complete fundamentals Certification AliCloud",
+            "progress": 0
+        },{
+            "t": "C",
+            "text": "Certifciation Azure",
+            "desc": "Complete fundamentals Certification Azure",
+            "progress": 0
+        },{
+            "t": "C",
+            "text": "Certifciation AWS",
+            "desc": "Complete fundamentals Certification AWS",
             "progress": 0
         }]
     }

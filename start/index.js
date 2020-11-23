@@ -11,6 +11,7 @@ function generateSlide(){
     .then(collabs.getCollabsData)
     .then(slides.createSlides)
     .then(slides.listSlides)
+    .then(slides.createLists)
     .then(slides.replaceImages)
     //.then(slides.replaceTextSlides)
     //.then(slides.debugInfo)
