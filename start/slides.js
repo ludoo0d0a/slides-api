@@ -17,7 +17,7 @@ const PRESENTATION_ID_READ = '1wSc1lk8vxzsbP-a7GIYSXZJ9qxJhtyNoyw5un_PLl_s' // g
 
 // copy from here
 const ID_SOURCE_SLIDE = 'gacbe3db941_0_547';
-const SLIDES_ALREADY_THERE = 2; // slides already present in slide
+let SLIDES_ALREADY_THERE = 0; // TODO: set it in a better way :  slides already present in slide 
 
 // true: use a master layout template ; false = copy slide from ID_SOURCE_SLIDE
 const USE_TEMPLATE = false;
@@ -30,6 +30,9 @@ const USE_SEQUENTIAL_BATCH = false;
 
 // Replace placeholders on each slide creation 
 const REPLACE_ON_SLIDE = true;
+
+//Replace all global placeholders
+const REPLACE_ALL_SLIDES = true;
 
 const LOG_OUT = false;
 const LOG_IN = false;
@@ -174,7 +177,7 @@ module.exports.replaceImages = replaceImages;
 function updateImageJSON(slide, indexSlide, ghData) {
   let request = [];
   const images = _listImages(slide);
-  const offset = SLIDES_ALREADY_THERE;
+  const offset = SLIDES_ALREADY_THERE - 1; //template slide removed
   // Replace image per slide
   images.forEach(image => {
     // align slide with collab
@@ -225,6 +228,10 @@ const listLayouts = (r) => {
       for (i in _layouts) {
         layouts[_layouts[i].layoutProperties.displayName] = _layouts[i].objectId;
       }
+
+      // bof bof
+      SLIDES_ALREADY_THERE = pres.slides.length;
+
       return resolve([auth, ghData, presentation, pres, layouts]);
     });
 
@@ -341,7 +348,7 @@ function createSlideJSON_copy(collabData, index) {
     for (const [key, value] of Object.entries(collabData.fields)) {
       request.push({
         replaceAllText: {
-          replaceText: '//'+index+' ' + value,
+          replaceText: ''+value,
           containsText: { text: '{{' + key + '}}' }
           , pageObjectIds: [slideId]   // => TODO
         }
@@ -408,7 +415,7 @@ function updateSlideJSON(collabData, index, slides) {
   // Replace global
   request.push({
     replaceAllText: {
-      replaceText: 'UPDATED [' + index + ']',
+      replaceText: 'Slide [' + index + ']',
       containsText: { text: '{{TITLE2}}' }
       //, pageObjectIds: [slideId]
     }
@@ -416,25 +423,11 @@ function updateSlideJSON(collabData, index, slides) {
 
   request.push({
     replaceAllText: {
-      replaceText: 'UPDAT3D [' + index + ']',
+      replaceText: 'Slide [' + slideId + ']',
       containsText: { text: '{{TITLE3}}' }
-      //, pageObjectIds: ['gac8e0ea071_5_74']
       , pageObjectIds: [slideId]
     }
   })
-
-
-  /*
-  request.push({
-    "replaceAllShapesWithImage": {
-      "imageUrl": url,
-      "replaceMethod": "CENTER_INSIDE",
-      "containsText": {
-          "text": "{{photo}}",
-      }
-    }
-  })
-  */
 
   return request;
 
@@ -525,25 +518,31 @@ function createSlidesAll(r) {
   const slideLayout = layouts['Collab'];
   console.log('Found the layout slide "Collab"');
 
-  // default template : OK
-  //const allSlides = ghData.map((data, index) => createSlideJSON_default(data, index, slideLayout));
-  // Custom template : KO !!
-  //const allSlides = ghData.map((data, index) => createSlideJSON(data, index, slideLayout));
-
   const _createSlideJson = USE_TEMPLATE ? (USE_DEFAULT_TEMPLATE ? createSlideJSON_default : createSlideJSON_custom) : createSlideJSON_copy;
   const slideRequests = ghData.map((data, index) => _createSlideJson(data, index, slideLayout));
 
   // Replace global
-  slideRequests.push([{
-    replaceAllText: {
-      replaceText: SLIDE_TITLE_TEXT,
-      containsText: { text: '{{TITLE}}' }
-    }
-  }, {
+  if (REPLACE_ALL_SLIDES){
+      slideRequests.push([{
+        replaceAllText: {
+          replaceText: SLIDE_TITLE_TEXT,
+          containsText: { text: '{{TITLE}}' }
+        }
+      },{
+        replaceAllText: {
+          replaceText: ''+pres.slides.length,
+          containsText: { text: '{{COUNT}}' }
+        }
+      }])
+  }
+
+  // Remove template slide (be aware to the offset later)
+  slideRequests.push({
     deleteObject: {
       objectId: ID_SOURCE_SLIDE
     }
-  }])
+  })
+  
   return batchUpdate([auth, ghData, presentation, pres, slideRequests]);
 }
 
@@ -570,7 +569,7 @@ function getOp(title) {
 module.exports.createLists = function (r) {
   const [auth, ghData, presentation, pres] = r;
   console.log('_createLists');
-  const offset = SLIDES_ALREADY_THERE;
+  const offset = SLIDES_ALREADY_THERE - 1; //template slide removed
   const slideRequests = [];
   const slideRequestsDelete = [];
 
@@ -734,13 +733,7 @@ module.exports.createLists = function (r) {
   }); // map slides
 
   return batchUpdate([auth, ghData, presentation, pres, slideRequests])
-
-  // .then((r) => {
-  //   return batchUpdate([auth, ghData, presentation, pres, slideRequestsDelete]);
-  // });
 }
-
-
 
 function batchUpdate(r) {
   const [auth, ghData, presentation, pres, _slideRequests] = r;

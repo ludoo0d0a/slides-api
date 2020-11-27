@@ -122,22 +122,26 @@
     "fields": {
         "code": "XXX",
         "name": "John",
-        "lastname": "LDoeeponge",
+        "lastname": "Doe",
         "age": 42,
         "tl": "RBO",
         "xp": 19,
-        "skills": "fullstack",
+        "skills": "monostack",
         "clients": "somewhere",
-        "overview": "bla blah blah. Bob is fun!",
-        "plus1": "stronger",
-        "plus2": "better",
-        "plus3": "faster",
+        "overview": "Unknown",
+        "plus1": "invisible",
+        "plus2": "discrete",
+        "plus3": "",
         "plus4": "",
-        "minus1": "wet",
-        "minus2": "yellow",
+        "minus1": "invisible",
+        "minus2": "discrete",
         "minus3": "",
         "minus4": "",
-        "photo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3b/SpongeBob_SquarePants_character.svg/1200px-SpongeBob_SquarePants_character.svg.png"
+        "photo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Antu_im-invisible-user.svg/1024px-Antu_im-invisible-user.svg.png"
+    },
+    "list": {
+        "obj": [],
+        "newobj": []
     }
 }
 
